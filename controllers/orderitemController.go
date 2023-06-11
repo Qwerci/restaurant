@@ -15,6 +15,14 @@ func GetOrderItem() gin.HandlerFunc {
 	}
 }
 
+func GetOrderItemsByOrder() gin.HandlerFunc {
+	return func(c *gin.Context){
+
+	}
+}
+
+func ItemsByOrder( id string)(OrderItems []primitives.M, err error)
+
 
 func CreateOrderItem() gin.HandlerFunc {
 	return func(c *gin.Context){
