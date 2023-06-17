@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -9,10 +10,13 @@ import (
 	"github.com/Qwerci/restaurant/models"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"github.com/go-playground/validator"
 )
 
 var foodCollection *mongo.Collection = database.OpenCollection(database.Client, "food")
+var validate = validator.New()
 
 func GetFoods() gin.HandlerFunc {
 	return func(c *gin.Context){
@@ -37,9 +41,49 @@ func GetFood() gin.HandlerFunc {
 	}
 }
 
+
+
 func CreateFood() gin.HandlerFunc {
 	return func(c *gin.Context){
-		
+		var ctx, cancel = context.WithTimeout(context.Background(), 100 * time.Second)
+		var menu models.Menu
+		var food models.Food
+		filter := bson.M{"menu_id": food.Menu_id}
+
+		if err := c.BindJSON(&food); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		validationErr := validate.Struct(food)
+		if validationErr != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": validationErr.Error()})
+			return
+		}
+
+		err := menuCollection.FindOne(ctx, filter).Decode(&menu)
+		defer cancel()
+		if err != nil {
+			msg := fmt.Sprintf("menu was not food")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": msg})
+			return
+		}
+		food.Created_at = time.Now()
+		food.Updated_at = time.Now()
+		food.ID = primitive.NewObjectID()
+		food.Food_id = food.ID.Hex()
+		var num = toFixed(*food.Price, 2)
+		food.Price = &num
+
+		result, insertErr := foodCollection.InsertOne(ctx,food)
+		if insertErr != nil {
+			msg := fmt.Sprintf("Food item was not created")
+			c.JSON(http.StatusInternalServerError, gin.H{"Error": msg})
+			return
+		}
+		defer cancel()
+		c.JSON(http.StatusOK, result)
+
 	}
 }
 
