@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"fmt"
 	"time"
-	"log"
 	"github.com/Qwerci/restaurant/models"
 	"github.com/Qwerci/restaurant/database"
 	"github.com/gin-gonic/gin"
@@ -91,6 +90,9 @@ func CreateMenu() gin.HandlerFunc {
 	}
 }
 
+func inTimeSpan(start, end, check time.Time) bool {
+	return start.After(time.Now()) && end.After(start)
+}
 
 
 func UpdateMenu() gin.HandlerFunc {
@@ -104,7 +106,7 @@ func UpdateMenu() gin.HandlerFunc {
 		}
 
 		menuId := c.Param("menu_id")
-		filter := bson.M{"menu_id": menuId}
+		filter := bson.M{"_id": menuId}
 
 		var updateObj bson.D
 
@@ -132,17 +134,15 @@ func UpdateMenu() gin.HandlerFunc {
 
 			upsert := true
 
-			opt := options.UpdateOptions{
-				Upsert : &upsert,
-			}
+			opt := options.Update().SetUpsert(upsert)
 
 			result, err := menuCollection.UpdateOne(
 				ctx,
 				filter,
 				bson.D{
-					{"$set", updateObj},
+					{Key:"$set", Value:updateObj},
 				},
-				&opt,
+				opt,
 			)
 
 			if err != nil{
