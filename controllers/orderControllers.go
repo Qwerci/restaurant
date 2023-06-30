@@ -153,3 +153,16 @@ func UpdateOrder() gin.HandlerFunc {
 	
 	}
 }
+
+
+func OrderItemOrderCreator( order models.Order) string {
+	order.Created_at = time.Now()
+	order.Updated_at = time.Now()
+	order.ID = primitive.NewObjectID()
+	order.Order_id = order.ID.Hex()
+
+	orderCollection.InsertOne(ctx, order)
+	defer cancel()
+
+	return order.Order_id
+}
