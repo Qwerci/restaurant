@@ -41,7 +41,20 @@ func GetOrders() gin.HandlerFunc {
 
 func GetOrder() gin.HandlerFunc {
 	return func(c *gin.Context){
+		var ctx, cancel = context.WithTimeout(context.Background, 100 * time.Second)
 		
+		var order models.Order
+		orderId := c.Param("order_id")
+		filter := bson.M{"order_id": orderId}
+
+		err := menuCollection.FindOne(ctx, filter).Decode(&order)
+		defer cancel()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, 
+			gin.H{"error": "error occured while fetching the order"})
+		}
+		c.Json(http.StatusOK, order)
+	}
 }
 
 
