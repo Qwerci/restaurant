@@ -14,6 +14,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"github.com/go-playground/validator"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 var foodCollection *mongo.Collection = database.OpenCollection(database.Client, "food")
@@ -131,7 +132,69 @@ func CreateFood() gin.HandlerFunc {
 
 func UpdateFood() gin.HandlerFunc {
 	return func(c *gin.Context){
-		
+		var ctx, cancel = context.WithTimeout(context.Background(), 100 * time.Second)
+		var menu models.Menu
+		var food models.Food
+
+		foodId := c.Param("food_id")
+
+		if err := c.BindJSON(&food); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		var updateObj primitive.D
+
+		if food.Name != nil{
+			updateObj = append(updateObj, bson.E{Key:"name", Value:food.Name})
+		}
+
+		if food.Price != nil{
+			updateObj = append(updateObj, bson.E{Key:"price", Value:food.Price})
+		}
+
+		if food.Food_image != nil{
+			updateObj = append(updateObj, bson.E{Key:"food_image", Value:food.Food_image})
+		}
+
+		if food.Menu_id != nil{
+			err := menuCollection.FindOne(ctx, bson.M{"menu_id":food.Menu_id}).Decode(&menu)
+			defer cancel()
+			if err != nil {
+				msg := fmt.Sprintf("message:Menu was not found")
+				c.JSON(http.StatusInternalServerError, gin.H{"error": msg})
+				return
+			}
+			updateObj = append(updateObj, bson.E{Key:"menu_id", Value:food.Menu_id})
+		}
+
+		food.Updated_at = time.Now()
+		updateObj = append(updateObj, bson.E{Key:"updated_at", Value:food.Updated_at})
+
+		upsert := true
+		filter := bson.M{"food_id": foodId}
+
+		opt := options.Update().SetUpsert(upsert)
+
+		result, err := foodCollection.UpdateOne(
+			ctx,
+			filter,
+			bson.D{
+				{
+					Key:"$set", Value: updateObj,
+				},
+			},
+			opt,
+		)
+
+		if err != nil {
+			msg := fmt.Sprint("foot item update failed")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": msg})
+			return
+		}
+		c.JSON(http.StatusOK, result)
+
+
 	}
 }
 
