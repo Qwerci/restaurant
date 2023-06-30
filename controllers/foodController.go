@@ -3,17 +3,19 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"net/http"
-	"time"
 	"log"
+	"math"
+	"net/http"
 	"strconv"
+	"time"
+
 	"github.com/Qwerci/restaurant/database"
 	"github.com/Qwerci/restaurant/models"
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	"github.com/go-playground/validator"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
@@ -199,9 +201,9 @@ func UpdateFood() gin.HandlerFunc {
 }
 
 func round(num float64) int{
-
+	return int(num + math.Copysign(0.5, num))
 }
 
 func toFixed(num float64, precision int) float64 {
-
+	output := 
 }
