@@ -82,7 +82,50 @@ func GetInvoice() gin.HandlerFunc {
 
 func CreateInvoice() gin.HandlerFunc {
 	return func(c *gin.Context){
+		var ctx, cancel = context.WithTimeout(context.Background(), 100 * time.Second)
+		var invoice models.Invoice
+		filter := bson.M{"order_id": invoice.Order_id}
 
+		if err := c.BindJSON(&invoice); err != nil {
+			c.JSON(http.StatusBadRequest,
+			gin.H{"error": err.Error()})
+		}
+
+		var order models.Order
+
+		err := orderCollection.FindOne(ctx, filter).Decode(&order)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Order was not found"})
+			return
+		}
+
+		status := "PENDING"
+		if invoice.Payment_status == nil {
+			invoice.Payment_status = &status
+		}
+
+		invoice.Payment_due_date = time.Now().AddDate(0,0,1)
+		invoice.Created_at = time.Now()
+		invoice.Updated_at = time.Now()
+		invoice.ID = primitive.NewObjectID()
+		invoice.Invoice_id = invoice.ID.Hex()
+
+		validationErr := validate.Struct(invoice)
+		if validationErr != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": validationErr.Error()})
+			return
+		}
+
+		result, insertErr := invoiceCollection.InsertOne(ctx, invoice)
+		if insertErr != nil {
+			msg := fmt.Sprintf("invoice item was not created")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": msg})
+			return
+		}
+		defer cancel()
+
+		c.JSON(http.StatusOK, result)
+		
 	}
 }
 
