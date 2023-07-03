@@ -94,6 +94,43 @@ func CreateTable() gin.HandlerFunc {
 
 func UpdateTable() gin.HandlerFunc {
 	return func(c *gin.Context){
+		var ctx,cancel = context.WithTimeout(context.Background(), 100 * time.Second)
+		tableId := c.Param("table_id")
+		var table models.Table
 
+		var updateObj primitive.D
+
+		if table.Number_of_guests != nil {
+			updateObj = append(updateObj, bson.E{Key: "number_of_guests", Value: table.Number_of_guests})
+		}
+
+		if table.Table_number != nil {
+			updateObj = append(updateObj, bson.E{Key: "table_number", Value: table.Table_number})
+		}
+
+		table.Updated_at = time.Now()
+
+		upsert := true
+		opt := options.Update().SetUpsert(upsert)
+
+		filter := bson.M{"table_id": tableId}
+
+		result, err :=tableCollection.UpdateOne(
+			ctx,
+			filter,
+			bson.D{
+				{"$set", updateObj},
+			},
+			opt,
+		)
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, 
+				gin.H{"error": "table item update failed"})
+			return
+		}
+
+		defer cancel()
+		c.JSON(http.StatusOK, result)
 	}
 }
