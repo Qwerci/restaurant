@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/Qwerci/restaurant/database"
 	"github.com/Qwerci/restaurant/models"
@@ -25,7 +26,7 @@ func GetTables() gin.HandlerFunc {
 		defer cancel()
 		if err != nil{
 			c.JSON(http.StatusInternalServerError,
-			gin.H{"err": " Failed to list tables"} )
+			gin.H{"error": " Failed to list tables"} )
 		}
 
 		var allTables []bson.M
@@ -39,7 +40,19 @@ func GetTables() gin.HandlerFunc {
 
 func GetTable() gin.HandlerFunc {
 	return func(c *gin.Context){
+		var ctx,cancel = context.WithTimeout(context.Background(), 100 * time.time)
+		tableId := c.Param("table_id")
+		filter := bson.M{"table_id": tableId}
+		var table models.Table
 
+		err := tableCollection.FindOne(ctx, filter).Decode(&table)
+		defer cancel()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError,
+			gin.H{"error": err.Error()})
+		}
+		
+		c.JSON(http.StatusOK, table)
 	}
 }
 
