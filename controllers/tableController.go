@@ -20,7 +20,7 @@ var tableCollection *mongo.Collection = database.OpenCollection(database.Client,
 
 func GetTables() gin.HandlerFunc {
 	return func(c *gin.Context){
-		var ctx,cancel = context.WithTimeout(context.Background(), 100 * time.time)
+		var ctx,cancel = context.WithTimeout(context.Background(), 100 * time.Second)
 
 		result, err := orderCollection.Find(context.TODO(), bson.M{})
 		defer cancel()
@@ -40,7 +40,7 @@ func GetTables() gin.HandlerFunc {
 
 func GetTable() gin.HandlerFunc {
 	return func(c *gin.Context){
-		var ctx,cancel = context.WithTimeout(context.Background(), 100 * time.time)
+		var ctx,cancel = context.WithTimeout(context.Background(), 100 * time.Second)
 		tableId := c.Param("table_id")
 		filter := bson.M{"table_id": tableId}
 		var table models.Table
@@ -59,7 +59,36 @@ func GetTable() gin.HandlerFunc {
 
 func CreateTable() gin.HandlerFunc {
 	return func(c *gin.Context){
+		var ctx,cancel = context.WithTimeout(context.Background(), 100 * time.Second)
 
+		var table models.Table
+
+		if err := c.BindJSON(&table); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		validationErr := validate.Struct(table)
+		if validationErr != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": validationErr.Error()})
+			return
+		}
+
+		table.Created_at = time.Now()
+		table.Updated_at = time.Now()
+
+		table.ID = primitive.NewObjectID()
+		table.Table_id = table.ID.Hex()
+
+		result, insertErr := tableCollection.InsertOne(ctx, table)
+		if insertErr != nil {
+			c.JSON(http.StatusInternalServerError,
+			gin.H{"error": "Table was not created"})
+			return
+		}
+		defer cancel()
+
+		c.JSON(http.StatusOK, result)
 	}
 }
 
