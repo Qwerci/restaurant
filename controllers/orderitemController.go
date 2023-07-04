@@ -17,12 +17,29 @@ import (
 
 type OrderItemPack struct{
 	Table_id	*string
-	Order_items	[]models.orderItem
+	Order_items	[]models.OrderItem
 }
 
+var orderitemCollection *mongo.Collection = database.OpenCollection(database.Client, "orderitem")
 func GetOrderItems() gin.HandlerFunc {
 	return func(c *gin.Context){
+		var ctx, cancel = context.WithTimeout(context.Background(), 100 * time.Second)
 
+		result, err := orderitemCollection.Find(ctx, bson.M{})
+
+		defer cancel()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError,
+			gin.H{"error": "error occured while getting ordered items"})
+			return
+		}
+
+		var allOrderItems []bson.M
+		if err = result.All(ctx, &allOrderItems); err != nil {
+			log.Fatal(err)
+			return
+		}
+		c.JSON(http.StatusOK, allOrderItems)
 	}
 }
 
