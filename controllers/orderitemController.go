@@ -74,12 +74,55 @@ func GetOrderItem() gin.HandlerFunc {
 	}
 }
 
-func ItemsByOrder( id string)(OrderItems []primitives.M, err error)
+func ItemsByOrder( id string)(OrderItems []primitive.M, err error)
 
 
 func CreateOrderItem() gin.HandlerFunc {
 	return func(c *gin.Context){
+		var ctx, cancel = context.WithTimeout(context.Background(), 100 * time.Second)
+		
+		var orderItemsPack OrderItemPack
+		var order models.Order
+		
+		if err := c.BindJSON(&orderItemsPack); err != nil{
+			c.JSON(http.StatusBadRequest,
+			gin.H{"error": err.Error()})
+			return
+		}
 
+		order.Order_Date = time.Now()
+
+		orderItemsToBeInserted := []interface{}{}
+		order.Table_Order = orderItemsPack.Table_id
+		order_id := OrderItemOrderCreator(order)
+
+		for _, orderItem := range orderItemsPack.Order_items {
+			orderItem.Order_id = order_id
+			validationErr := validate.Struct(orderItem)
+
+			if validationErr != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": validationErr.Error()})
+				return
+			}
+
+			orderItem.ID = primitive.NewObjectID()
+			orderItem.Created_at = time.Now()
+			orderItem.Updated_at = time.Now()
+			orderItem.Order_item_id = orderItem.ID.Hex()
+
+			var num = toFixed(*orderItem.Unit_price, 2)
+			orderItem.Unit_price = &num
+			orderItemsToBeInserted = append(orderItemsToBeInserted, orderItem)
+		}
+
+		insertedOrderItems, err := orderitemCollection.InsertMany(ctx, orderItemsToBeInserted)
+
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer cancel()
+
+		c.JSON(http.StatusOK, insertedOrderItems)
 	}
 }
 
