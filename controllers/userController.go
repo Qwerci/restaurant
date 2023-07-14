@@ -2,13 +2,15 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
-	"fmt"
+
 	"github.com/Qwerci/restaurant/database"
-	"github.com/Qwerci/restaurant/models"
 	helper "github.com/Qwerci/restaurant/helpers"
+	"github.com/Qwerci/restaurant/models"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -22,7 +24,43 @@ var userCollection *mongo.Collection = database.OpenCollection(database.Client, 
 
 func GetUsers() gin.HandlerFunc {
 	return func(c *gin.Context){
+		var ctx, cancel = context.WithTimeout(context.Background(), 100 * time.Second)
 
+		recordPerPage, err := strconv.Atoi(c.Query("recordPerPage"))
+		if err != nil || recordPerPage < 1 {
+			recordPerPage = 10
+		}
+
+		page, err1 := strconv.Atoi(c.Query("page"))
+		if err1 != nil || page < 1{
+			page = 1
+		}
+
+		startIndex := (page - 1) * recordPerPage
+		startIndex, err = strconv.Atoi(c.Query("startIndex"))
+
+		matchStage := bson.D{{Key:"$match", Value: bson.D{{}}}}
+		projectStage := bson.D{
+						{Key:"$project", Value: bson.D{
+							{"_id", 0},
+							{"total_count", 1},
+							{"user_items", bson.D{
+								{"$slice", []interface{}{"$data", startIndex, recordPerPage}}}},
+
+						}}}
+
+		result, err := userCollection.Aggregate(ctx, mongo.Pipeline{
+			matchStage, projectStage})
+		defer cancel()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "error occured while listing user items"})
+		}
+
+		var allUsers []bson.M
+		if err = result.All(ctx, &allUsers); err != nil {
+			log.Fatal(err)
+		}
+		c.JSON(http.StatusOK, allUsers[0])
 	}
 }
 
@@ -37,7 +75,7 @@ func GetUser() gin.HandlerFunc {
 
 func SignUp() gin.HandlerFunc {
 	return func(c *gin.Context){
-		var ctx, cancle = context.WithTimeout(context.Background(), 100 * time.Second)
+		var ctx, cancel = context.WithTimeout(context.Background(), 100 * time.Second)
 		var user models.User
 
 		if err := c.BindJSON(&user); err != nil {
@@ -52,7 +90,7 @@ func SignUp() gin.HandlerFunc {
 		}
 
 		count, err := userCollection.CountDocuments(ctx, bson.M{"email": user.Email})
-		defer cancle()
+		defer cancel()
 		if err != nil {
 			log.Panic(err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "error occured while checking for the email"})
