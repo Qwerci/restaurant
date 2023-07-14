@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 	"time"
-
+	"fmt"
 	"github.com/Qwerci/restaurant/database"
 	"github.com/Qwerci/restaurant/models"
 	helper "github.com/Qwerci/restaurant/helpers"
@@ -147,4 +147,13 @@ func HashedPassword(password string) string{
 
 func VerifyPassword(userPassword string, providePassword string)(bool, string){
 
+	err := bcrypt.CompareHashAndPassword([]byte(providePassword), []byte(userPassword))
+	check := true
+	msg := ""
+
+	if err != nil {
+		msg = fmt.Sprintf("login or password is incorrect")
+		check = false
+	}
+	return check, msg
 } 
