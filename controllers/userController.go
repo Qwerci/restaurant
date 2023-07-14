@@ -14,6 +14,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"golang.org/x/crypto/bcrypt"
 )
 
 
@@ -106,7 +107,12 @@ func Login() gin.HandlerFunc {
 
 
 func HashedPassword(password string) string{
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+	if err != nil {
+		log.Panic(err)
+	}
 
+	return string(bytes)
 }
 
 
